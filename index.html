@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Distance Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; font-family: 'Kanit', sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f4f7f6; color: #333; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header {
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: white; padding: 25px; border-radius: 12px;
+      text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
+    }
+    header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+    .student-info {
+      background: rgba(255, 255, 255, 0.15); display: inline-block;
+      padding: 6px 16px; border-radius: 20px; font-size: 0.95rem;
+    }
+    .status-card {
+      background: white; padding: 20px; border-radius: 12px;
+      margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    }
+    .btn-refresh {
+      background-color: #2a5298; color: white; border: none;
+      padding: 10px 18px; border-radius: 8px; cursor: pointer; transition: 0.3s;
+    }
+    .btn-refresh:hover { background-color: #1e3c72; }
+    .table-container {
+      background: white; border-radius: 12px; overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 14px 18px; border-bottom: 1px solid #eee; }
+    th { background-color: #f8f9fa; color: #444; font-weight: 600; }
+    .badge { padding: 5px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: 600; }
+    .badge-safe { background-color: #d4edda; color: #155724; }
+    .badge-warning { background-color: #fff3cd; color: #856404; }
+    .badge-danger { background-color: #f8d7da; color: #721c24; }
+    .loading { text-align: center; padding: 30px; color: #777; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1><i class="fa-solid fa-satellite-dish"></i> IoT Distance Monitoring Dashboard</h1>
+      <div class="student-info">
+        <!-- ⚠️ อย่าลืมแก้ชื่อ-รหัสนักศึกษาของคุณตรงนี้นะครับ -->
+        <i class="fa-solid fa-user-graduate"></i> <strong>ผู้พัฒนา:</strong> [ชื่อของคุณ] | <strong>รหัสนักศึกษา:</strong> [รหัสนักศึกษา]
+      </div>
+    </header>
+
+    <div class="status-card">
+      <div>
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> ประวัติการตรวจจับล่าสุด (Real-time)</h3>
+        <small id="last-update" style="color: #888;">กำลังโหลดข้อมูล...</small>
+      </div>
+      <button class="btn-refresh" onclick="fetchDashboardData()">
+        <i class="fa-solid fa-rotate-right"></i> รีเฟรชข้อมูล
+      </button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ลำดับ</th>
+            <th>วัน - เวลา (Timestamp)</th>
+            <th>ระยะทางที่วัดได้ (cm)</th>
+            <th>สถานะความปลอดภัย</th>
+          </tr>
+        </thead>
+        <tbody id="data-table-body">
+          <tr>
+            <td colspan="4" class="loading"><i class="fa-solid fa-spinner fa-spin"></i> กำลังดึงข้อมูลจาก Google Sheets...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // URL Web App จาก Google Apps Script ของคุณ
+    const API_URL = "https://script.google.com/macros/s/AKfycbzd6jDoQEVdLv4Fkz42_UFmDf0kgIqDNVIGReEgDUbOv-Ki8_06Z_06YI0-y8lu3ZzOA/exec";
+
+    async function fetchDashboardData() {
+      const tableBody = document.getElementById("data-table-body");
+      const lastUpdateText = document.getElementById("last-update");
+      
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+
+        tableBody.innerHTML = "";
+
+        if (!data || data.length === 0) {
+          tableBody.innerHTML = `<tr><td colspan="4" class="loading">ยังไม่มีข้อมูลในระบบ</td></tr>`;
+          return;
+        }
+
+        data.forEach((item, index) => {
+          let badgeClass = "badge-safe";
+          if (item.status === "WARNING") badgeClass = "badge-warning";
+          if (item.status === "DANGER") badgeClass = "badge-danger";
+
+          const row = `
+            <tr>
+              <td><strong>${index + 1}</strong></td>
+              <td>${item.timestamp}</td>
+              <td><strong>${item.distance}</strong> ซม.</td>
+              <td><span class="badge ${badgeClass}">${item.status}</span></td>
+            </tr>
+          `;
+          tableBody.innerHTML += row;
+        });
+
+        const now = new Date();
+        lastUpdateText.innerText = "อัปเดตล่าสุดเมื่อ: " + now.toLocaleTimeString("th-TH");
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        tableBody.innerHTML = `<tr><td colspan="4" class="loading" style="color:red;"><i class="fa-solid fa-triangle-exclamation"></i> ไม่สามารถดึงข้อมูลได้ โปรดเช็ก Web App URL</td></tr>`;
+      }
+    }
+
+    fetchDashboardData();
+    setInterval(fetchDashboardData, 10000);
+  </script>
+</body>
+</html>
